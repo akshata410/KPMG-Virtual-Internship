@@ -1,0 +1,415 @@
+---
+title: "KPMG Virtual Internship"
+author: "Akshata Bodhankar"
+date: "8/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(readxl, writexl, ggplot2, ggcorrplot, dplyr, MASS, caret, rpart, rpart.plot, rattle, caret)
+#library(readxl)
+
+#install.packages("writexl", dependencies = T)
+#library(writexl)
+
+#install.packages("ggcorrplot")
+#library(ggplot2)
+#library(ggcorrplot)
+#library(dplyr)
+#library(MASS)
+#library(caret)
+
+```
+
+
+```{r data}
+
+custDemo <- read_excel("C:\\Users\\aksha\\Documents\\kpmg virtual internship\\KPMG_VI_New_raw_data_update_final (version 2).xlsx", sheet = 2)
+
+custAdd <- read_excel("C:\\Users\\aksha\\Documents\\kpmg virtual internship\\KPMG_VI_New_raw_data_update_final (version 2).xlsx", sheet = 3)
+
+Transactions <- read_excel("C:\\Users\\aksha\\Documents\\kpmg virtual internship\\KPMG_VI_New_raw_data_update_final (version 2).xlsx", sheet = 4)
+
+newCust <- read_excel("C:\\Users\\aksha\\Documents\\kpmg virtual internship\\KPMG_VI_New_raw_data_update_final (version 2).xlsx", sheet = 5)
+
+```
+
+## Convert to data table:
+
+```{r pressure, echo=FALSE}
+
+library(data.table)
+custDemo.dt <- as.data.table(custDemo)
+custAdd.dt <- as.data.table(custAdd)
+Transactions.dt <- as.data.table(Transactions)
+newCust.dt <- as.data.table(newCust)
+
+```
+
+## Join Address and demographics table
+```{r join}
+
+existingCust <- merge(custDemo.dt, custAdd.dt, by.x = "customer_id", by.y = "customer_id", all = T)
+existingCustTrans <- merge(existingCust, Transactions.dt, by.x = "customer_id", by.y = "customer_id", all = T)
+
+```
+
+## Computing basic statistics for customer demographics:
+
+```{r stats}
+
+# Compute Statistics - mean, standard dev, min, max, median, length, 
+custDemo.dt[, .(mean=mean(past_3_years_bike_related_purchases), sd=sd(past_3_years_bike_related_purchases), 
+               minimum=min(past_3_years_bike_related_purchases), maximum=max(past_3_years_bike_related_purchases),
+               median=median(past_3_years_bike_related_purchases)), by=Gender]
+
+```
+
+## Converting gender and job title
+
+```{r converts}
+
+cust.dt <- existingCustTrans[, c(-2, -3, -6, -12, -15)]
+cust.dt <- within(cust.dt, Gender[grep('Female', Gender, ignore.case = T)] <-  1)
+cust.dt <- within(cust.dt, Gender[grep('Male', Gender, ignore.case = T)] <-  0)
+
+cust.dtNew <- within(cust.dt, job_title[grep('editor', job_title, ignore.case = T)] <-  1)
+cust.dtNew <- within(cust.dtNew, job_title[grep('consultant', job_title, ignore.case = T)] <-  2)
+cust.dtNew <- within(cust.dtNew, job_title[grep('programmer', job_title, ignore.case = T)] <-  3)
+cust.dtNew <- within(cust.dtNew, job_title[grep('recruit', job_title, ignore.case = T)] <-  4)
+cust.dtNew <- within(cust.dtNew, job_title[grep('legal', job_title, ignore.case = T)] <- 5)
+cust.dtNew <- within(cust.dtNew, job_title[grep('payment', job_title, ignore.case = T)] <-  5)
+cust.dtNew <- within(cust.dtNew, job_title[grep('research', job_title, ignore.case = T)] <-  6)
+cust.dtNew <- within(cust.dtNew, job_title[grep('operator', job_title, ignore.case = T)] <-  7)
+cust.dtNew <- within(cust.dtNew, job_title[grep('account', job_title, ignore.case = T)] <-  8)
+cust.dtNew <- within(cust.dtNew, job_title[grep('actua', job_title, ignore.case = T)] <-  8)
+cust.dtNew <- within(cust.dtNew, job_title[grep('admin', job_title, ignore.case = T)] <-  9)
+cust.dtNew <- within(cust.dtNew, job_title[grep('teacher', job_title, ignore.case = T)] <-  10)
+cust.dtNew <- within(cust.dtNew, job_title[grep('professor', job_title, ignore.case = T)] <-  10)
+cust.dtNew <- within(cust.dtNew, job_title[grep('autom', job_title, ignore.case = T)] <-  11)
+cust.dtNew <- within(cust.dtNew, job_title[grep('biostat', job_title, ignore.case = T)] <-  12)
+cust.dtNew <- within(cust.dtNew, job_title[grep('scien', job_title, ignore.case = T)] <-  12)
+cust.dtNew <- within(cust.dtNew, job_title[grep('engineer', job_title, ignore.case = T)] <-  13)
+cust.dtNew <- within(cust.dtNew, job_title[grep('specialist', job_title, ignore.case = T)] <-  14)
+cust.dtNew <- within(cust.dtNew, job_title[grep('statistician', job_title, ignore.case = T)] <-  15)
+cust.dtNew <- within(cust.dtNew, job_title[grep('sales', job_title, ignore.case = T)] <-  16)
+cust.dtNew <- within(cust.dtNew, job_title[grep('analyst', job_title, ignore.case = T)] <-  17)
+cust.dtNew <- within(cust.dtNew, job_title[grep('data', job_title, ignore.case = T)] <-  17)
+cust.dtNew <- within(cust.dtNew, job_title[grep('dental', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('health', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('nurse', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('therap', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('pharmacist', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('pathologist', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('chemist', job_title, ignore.case = T)] <-  18)
+cust.dtNew <- within(cust.dtNew, job_title[grep('techn', job_title, ignore.case = T)] <-  19)
+cust.dtNew <- within(cust.dtNew, job_title[grep('developer', job_title, ignore.case = T)] <-  20)
+cust.dtNew <- within(cust.dtNew, job_title[grep('editor', job_title, ignore.case = T)] <-  21)
+cust.dtNew <- within(cust.dtNew, job_title[grep('director', job_title, ignore.case = T)] <-  22)
+cust.dtNew <- within(cust.dtNew, job_title[grep('environ', job_title, ignore.case = T)] <-  23)
+cust.dtNew <- within(cust.dtNew, job_title[grep('secretary', job_title, ignore.case = T)] <-  24)
+cust.dtNew <- within(cust.dtNew, job_title[grep('advisor', job_title, ignore.case = T)] <-  25)
+cust.dtNew <- within(cust.dtNew, job_title[grep('geologist', job_title, ignore.case = T)] <-  26)
+cust.dtNew <- within(cust.dtNew, job_title[grep('manag', job_title, ignore.case = T)] <-  27)
+cust.dtNew <- within(cust.dtNew, job_title[grep('designer', job_title, ignore.case = T)] <-  28)
+cust.dtNew <- within(cust.dtNew, job_title[grep('help desk', job_title, ignore.case = T)] <-  29)
+cust.dtNew <- within(cust.dtNew, job_title[grep('human resour', job_title, ignore.case = T)] <-  30)
+cust.dtNew <- within(cust.dtNew, job_title[grep('auditor', job_title, ignore.case = T)] <-  31)
+cust.dtNew <- within(cust.dtNew, job_title[grep('exec', job_title, ignore.case = T)] <-  32)
+cust.dtNew <- within(cust.dtNew, job_title[grep('librarian', job_title, ignore.case = T)] <-  33)
+cust.dtNew <- within(cust.dtNew, job_title[grep('marketing', job_title, ignore.case = T)] <-  34)
+cust.dtNew <- within(cust.dtNew, job_title[grep('media', job_title, ignore.case = T)] <-  35)
+cust.dtNew <- within(cust.dtNew, job_title[grep('quality', job_title, ignore.case = T)] <-  36)
+cust.dtNew <- within(cust.dtNew, job_title[grep('social', job_title, ignore.case = T)] <-  37)
+cust.dtNew <- within(cust.dtNew, job_title[grep('assist', job_title, ignore.case = T)] <-  24)
+cust.dtNew <- within(cust.dtNew, job_title[is.na(job_title)] <- 0)
+
+```
+
+## Converting job industry category
+
+```{r job industry}
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('argi', job_industry_category, ignore.case = T)] <- 1)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('entert', job_industry_category, ignore.case = T)] <- 2)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('finan', job_industry_category, ignore.case = T)] <- 3)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('healt', job_industry_category, ignore.case = T)] <- 4)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('IT', job_industry_category, ignore.case = F)] <- 5)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('manuf', job_industry_category, ignore.case = T)] <- 6)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('n/a', job_industry_category, ignore.case = T)] <- 0)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('proper', job_industry_category, ignore.case = T)] <- 7)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('retail', job_industry_category, ignore.case = T)] <- 8)
+cust.dtNew <- within(cust.dtNew, job_industry_category[grep('telecom', job_industry_category, ignore.case = T)] <- 9)
+
+
+```
+
+## Converting wealth segment
+```{r wealth}
+cust.dtNew <- within(cust.dtNew, wealth_segment[grep('afflu', wealth_segment, ignore.case = T)] <- 1)
+cust.dtNew <- within(cust.dtNew, wealth_segment[grep('high', wealth_segment, ignore.case = T)] <- 2)
+cust.dtNew <- within(cust.dtNew, wealth_segment[grep('mass', wealth_segment, ignore.case = T)] <- 3)
+
+```
+
+## Converting deceased indicator and car ownership
+
+```{r life indicator}
+
+cust.dtNew <- within(cust.dtNew, deceased_indicator[grep('N', deceased_indicator, ignore.case = T)] <- 0)
+cust.dtNew <- within(cust.dtNew, deceased_indicator[grep('Y', deceased_indicator, ignore.case = T)] <- 1)
+
+cust.dtNew <- within(cust.dtNew, owns_car[grep('No', owns_car, ignore.case = T)] <- 0)
+cust.dtNew <- within(cust.dtNew, owns_car[grep('Yes', owns_car, ignore.case = T)] <- 1)
+
+```
+
+## Creating age buckets
+
+```{r age bucketing}
+
+cust.dtNew <- within(cust.dtNew, Age[Age<=20] <- 1)
+cust.dtNew <- within(cust.dtNew, Age[Age>20 & Age <=40] <- 2)
+cust.dtNew <- within(cust.dtNew, Age[Age>40 & Age<=60] <- 3)
+cust.dtNew <- within(cust.dtNew, Age[Age>60 & Age<=80] <- 4)
+cust.dtNew <- within(cust.dtNew, Age[Age>80] <- 5)
+
+#write_xlsx(cust.dtNew, "C:\\Users\\aksha\\Documents\\kpmg virtual internship\\Customer_Demo_New.xlsx")
+
+```
+
+## Remove customers with no gender
+
+```{r drop}
+
+cust.dtNew2 <- cust.dtNew[!is.na(cust.dtNew$Gender)]
+
+#write_xlsx(cust.dtNew, "C:\\Users\\aksha\\Documents\\kpmg virtual internship\\Customer_Demo_New.xlsx")
+
+```
+
+Also, from the Tableau workbook, we observe that:
+1. Most purchases are made by people of age group 40 and 60
+2. Accountants, Actuaries and Engineers have highest number of transactions but it may be because these type of customers are also more in number.
+3. High and low product class are sold in comparable numbers. But medium are most popular.
+4. Very less consultants buy bikes followed by people working in fields related to environment and financial advisors
+5. Medium size and product line standard are most popular
+
+## Removing more columns and making others categorical
+
+```{r drop again}
+
+cust.dtNew2 <- cust.dtNew2[, c(-11, -14, -16)]
+
+cust.dtNew2[, State := ifelse(State=='NSW', 1, ifelse(State=='QLD', 2, 3))]
+cust.dtNew2[, transaction_month := month(transaction_date)]
+cust.dtNew2[, transaction_year := year(transaction_date)]
+cust.dtNew2[, Online_Order := ifelse(Online_Order=='FALSE', 0, 1)]
+cust.dtNew2[, order_status := ifelse(order_status=='Cancelled', 0, 1)]
+cust.dtNew2[, brand := ifelse(brand=='Giant Bicycles', 1, ifelse(brand=='Norco Bicycles', 2, ifelse(brand=='OHM Cycles', 3, ifelse(brand=='Solex', 4, ifelse(brand=='Trek Bicycles', 5, 6)))))]
+cust.dtNew2[, product_line := ifelse(product_line=='Mountain', 1, ifelse(product_line=='Road', 2, ifelse(product_line=='Standard', 3, 4)))]
+cust.dtNew2[, product_class := ifelse(product_class=='low', 1, ifelse(product_class=='medium', 2, 3))]
+cust.dtNew2[, product_size := ifelse(product_size=='small', 1, ifelse(product_size=='medium', 2, 3))]
+cust.dtNew2[, product_first_sold_month := month(product_first_sold_date)]
+cust.dtNew2[, product_first_sold_year := year(product_first_sold_date)]
+
+cust.dtNew2a <- cust.dtNew2[, c(-15, -24)]
+
+write_xlsx(cust.dtNew2a, "C:\\Users\\aksha\\Documents\\kpmg virtual internship\\Customer_Demo_New2.xlsx")
+#450 people do not have transactions. Let's remove them too.
+cust.dtNew3 <- cust.dtNew2a[!is.na(cust.dtNew2$product_id)]
+
+```
+
+## Convert data to customer level
+
+```{r data conversion}
+
+cust.df <- as.data.frame(cust.dtNew3[, c(-14, -16, -24)])
+cust.df2 <- cust.df %>% group_by(customer_id, Gender, past_3_years_bike_related_purchases, Age, job_title, job_industry_category, wealth_segment, deceased_indicator, owns_car, tenure, postcode, State, property_valuation) %>% summarise(Online_Order = round(mean(Online_Order)), brand = round(mean(brand)), product_line = round(mean(product_line)), product_class = round(mean(product_class)), product_size = round(mean(product_size)), list_price = round(mean(list_price)), standard_cost = round(mean(standard_cost)), transaction_month = round(mean(transaction_month)), product_first_sold_month = round(mean(product_first_sold_month)), product_first_sold_year = round(mean(product_first_sold_year)))
+
+```
+
+## Clustering
+
+```{r  clustering}
+
+#Elbow Method for finding the optimal number of clusters
+# Compute and plot wss for k = 2 to k = 15.
+k.max <- 100
+data <- cust.df2[, c(2:10, 13, 23)]
+set.seed(123)
+wss <- sapply(2:k.max, 
+              function(k){kmeans(data, k, iter.max = 11)$tot.withinss})
+wss
+plot(2:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+```
+
+k=36 appears to be the elbow and hence the optimal number of clusters we must consider.
+
+## Labeling clusters in data
+
+```{r label cuslter}
+
+set.seed(123)
+km <- kmeans(x = cust.df2[, c(2:10, 13, 23)], 36)
+cust.df2$cluster <- km$cluster
+
+```
+
+## Train and Test Data
+
+```{r train}
+
+# remove the columns which are not present in the list of potential customers
+cust.df.model <- cust.df2[, c(2:10, 13, 24)]
+
+#train 70 test 30
+set.seed(123)  
+train.index <- sample(c(1:nrow(cust.df.model)), round(0.7 * nrow(cust.df.model)))
+train.df <- cust.df.model[train.index, ]
+test.df <- cust.df.model[-train.index, ]
+
+```
+
+## Classification model
+
+```{r LDA classifier}
+
+set.seed(123)
+lda.train <- lda(cluster~., data = train.df)
+#lda.train
+
+# Predict - using Validation data
+pred.test <- predict(lda.train, test.df)
+names(pred.test)
+#pred.test
+
+# Confusion matrix
+acc1 <- table(pred.test$class, test.df$cluster)  # pred v actual
+confusionMatrix(acc1)
+```
+
+So, we get an accuracy of 95.9% using LDA
+
+Now let's work on the new customers data set
+
+```{r new customers}
+newCust_sub <- newCust.dt[, c(3, 4, 6, 7, 8, 9, 10, 11, 12, 18)]
+
+newCust_sub <- within(newCust_sub, Age[Age<=20] <- 1)
+newCust_sub <- within(newCust_sub, Age[Age>20 & Age <=40] <- 2)
+newCust_sub <- within(newCust_sub, Age[Age>40 & Age<=60] <- 3)
+newCust_sub <- within(newCust_sub, Age[Age>60 & Age<=80] <- 4)
+newCust_sub <- within(newCust_sub, Age[Age>80] <- 5)
+
+newCust_sub$Gender <- newCust_sub$gender
+newCust_sub$gender <- NULL
+
+newCust_sub <- within(newCust_sub, Gender[grep('Female', Gender, ignore.case = T)] <-  1)
+newCust_sub <- within(newCust_sub, Gender[grep('Male', Gender, ignore.case = T)] <-  0)
+
+newCust_sub <- within(newCust_sub, job_title[grep('editor', job_title, ignore.case = T)] <-  1)
+newCust_sub <- within(newCust_sub, job_title[grep('consultant', job_title, ignore.case = T)] <-  2)
+newCust_sub <- within(newCust_sub, job_title[grep('programmer', job_title, ignore.case = T)] <-  3)
+newCust_sub <- within(newCust_sub, job_title[grep('recruit', job_title, ignore.case = T)] <-  4)
+newCust_sub <- within(newCust_sub, job_title[grep('legal', job_title, ignore.case = T)] <- 5)
+newCust_sub <- within(newCust_sub, job_title[grep('payment', job_title, ignore.case = T)] <-  5)
+newCust_sub <- within(newCust_sub, job_title[grep('research', job_title, ignore.case = T)] <-  6)
+newCust_sub <- within(newCust_sub, job_title[grep('operator', job_title, ignore.case = T)] <-  7)
+newCust_sub <- within(newCust_sub, job_title[grep('account', job_title, ignore.case = T)] <-  8)
+newCust_sub <- within(newCust_sub, job_title[grep('actua', job_title, ignore.case = T)] <-  8)
+newCust_sub <- within(newCust_sub, job_title[grep('admin', job_title, ignore.case = T)] <-  9)
+newCust_sub <- within(newCust_sub, job_title[grep('teacher', job_title, ignore.case = T)] <-  10)
+newCust_sub <- within(newCust_sub, job_title[grep('professor', job_title, ignore.case = T)] <-  10)
+newCust_sub <- within(newCust_sub, job_title[grep('autom', job_title, ignore.case = T)] <-  11)
+newCust_sub <- within(newCust_sub, job_title[grep('biostat', job_title, ignore.case = T)] <-  12)
+newCust_sub <- within(newCust_sub, job_title[grep('scien', job_title, ignore.case = T)] <-  12)
+newCust_sub <- within(newCust_sub, job_title[grep('engineer', job_title, ignore.case = T)] <-  13)
+newCust_sub <- within(newCust_sub, job_title[grep('specialist', job_title, ignore.case = T)] <-  14)
+newCust_sub <- within(newCust_sub, job_title[grep('statistician', job_title, ignore.case = T)] <-  15)
+newCust_sub <- within(newCust_sub, job_title[grep('sales', job_title, ignore.case = T)] <-  16)
+newCust_sub <- within(newCust_sub, job_title[grep('analyst', job_title, ignore.case = T)] <-  17)
+newCust_sub <- within(newCust_sub, job_title[grep('data', job_title, ignore.case = T)] <-  17)
+newCust_sub <- within(newCust_sub, job_title[grep('dental', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('health', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('nurse', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('therap', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('pharmacist', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('pathologist', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('chemist', job_title, ignore.case = T)] <-  18)
+newCust_sub <- within(newCust_sub, job_title[grep('techn', job_title, ignore.case = T)] <-  19)
+newCust_sub <- within(newCust_sub, job_title[grep('developer', job_title, ignore.case = T)] <-  20)
+newCust_sub <- within(newCust_sub, job_title[grep('editor', job_title, ignore.case = T)] <-  21)
+newCust_sub <- within(newCust_sub, job_title[grep('director', job_title, ignore.case = T)] <-  22)
+newCust_sub <- within(newCust_sub, job_title[grep('environ', job_title, ignore.case = T)] <-  23)
+newCust_sub <- within(newCust_sub, job_title[grep('secretary', job_title, ignore.case = T)] <-  24)
+newCust_sub <- within(newCust_sub, job_title[grep('advisor', job_title, ignore.case = T)] <-  25)
+newCust_sub <- within(newCust_sub, job_title[grep('geologist', job_title, ignore.case = T)] <-  26)
+newCust_sub <- within(newCust_sub, job_title[grep('manag', job_title, ignore.case = T)] <-  27)
+newCust_sub <- within(newCust_sub, job_title[grep('designer', job_title, ignore.case = T)] <-  28)
+newCust_sub <- within(newCust_sub, job_title[grep('help desk', job_title, ignore.case = T)] <-  29)
+newCust_sub <- within(newCust_sub, job_title[grep('human resour', job_title, ignore.case = T)] <-  30)
+newCust_sub <- within(newCust_sub, job_title[grep('auditor', job_title, ignore.case = T)] <-  31)
+newCust_sub <- within(newCust_sub, job_title[grep('exec', job_title, ignore.case = T)] <-  32)
+newCust_sub <- within(newCust_sub, job_title[grep('librarian', job_title, ignore.case = T)] <-  33)
+newCust_sub <- within(newCust_sub, job_title[grep('marketing', job_title, ignore.case = T)] <-  34)
+newCust_sub <- within(newCust_sub, job_title[grep('media', job_title, ignore.case = T)] <-  35)
+newCust_sub <- within(newCust_sub, job_title[grep('quality', job_title, ignore.case = T)] <-  36)
+newCust_sub <- within(newCust_sub, job_title[grep('social', job_title, ignore.case = T)] <-  37)
+newCust_sub <- within(newCust_sub, job_title[grep('assist', job_title, ignore.case = T)] <-  24)
+newCust_sub <- within(newCust_sub, job_title[is.na(job_title)] <- 0)
+
+newCust_sub <- within(newCust_sub, job_industry_category[grep('argi', job_industry_category, ignore.case = T)] <- 1)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('entert', job_industry_category, ignore.case = T)] <- 2)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('finan', job_industry_category, ignore.case = T)] <- 3)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('healt', job_industry_category, ignore.case = T)] <- 4)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('IT', job_industry_category, ignore.case = F)] <- 5)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('manuf', job_industry_category, ignore.case = T)] <- 6)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('n/a', job_industry_category, ignore.case = T)] <- 0)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('proper', job_industry_category, ignore.case = T)] <- 7)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('retail', job_industry_category, ignore.case = T)] <- 8)
+newCust_sub <- within(newCust_sub, job_industry_category[grep('telecom', job_industry_category, ignore.case = T)] <- 9)
+
+newCust_sub <- within(newCust_sub, wealth_segment[grep('afflu', wealth_segment, ignore.case = T)] <- 1)
+newCust_sub <- within(newCust_sub, wealth_segment[grep('high', wealth_segment, ignore.case = T)] <- 2)
+newCust_sub <- within(newCust_sub, wealth_segment[grep('mass', wealth_segment, ignore.case = T)] <- 3)
+
+
+newCust_sub <- within(newCust_sub, deceased_indicator[grep('N', deceased_indicator, ignore.case = T)] <- 0)
+newCust_sub <- within(newCust_sub, deceased_indicator[grep('Y', deceased_indicator, ignore.case = T)] <- 1)
+
+newCust_sub <- within(newCust_sub, owns_car[grep('No', owns_car, ignore.case = T)] <- 0)
+newCust_sub <- within(newCust_sub, owns_car[grep('Yes', owns_car, ignore.case = T)] <- 1)
+
+newCust_sub <- newCust_sub[!is.na(newCust_sub$Gender)]
+
+#newCust_sub$State <- newCust_sub$state
+#newCust_sub$state <- NULL
+#newCust_sub[, State := ifelse(State=='NSW', 1, ifelse(State=='QLD', 2, 3))]
+
+newCust_sub$past_3_years_bike_related_purchases <- as.integer(newCust_sub$past_3_years_bike_related_purchases)
+newCust_sub$postcode <- as.integer(newCust_sub$postcode)
+newCust_sub$property_valuation <- as.integer(newCust_sub$property_valuation)
+
+pred.test <- predict(lda.train, newCust_sub)
+names(pred.test)
+#pred.test
+
+newCust_clusters <- cbind(newCust_sub, pred.test$class)
+
+write_xlsx(newCust_clusters, "C:\\Users\\aksha\\Documents\\kpmg virtual internship\\New Customers v2.xlsx")
+
+write_xlsx(cust.df.model, "C:\\Users\\aksha\\Documents\\kpmg virtual internship\\Existing Customers Clustered.xlsx")
+
+existingCustClustered <- cust.df.model %>% group_by(cluster) %>% summarise(purchases = mean(past_3_years_bike_related_purchases))
+```
+
+This shows that clusters are unordered. So, we shouldn't say that the customers in cluster 1 make less bike related purchases than those in cluster 2 or those in cluster 2 make more than those in cluster 3.
+
+For this data, we observed that the customers in cluster 4 make least number of bike related purchases while those in clusgter 36 are most valuable as they make the most number of bike related purchases.
